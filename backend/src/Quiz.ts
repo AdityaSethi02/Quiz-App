@@ -29,7 +29,7 @@ interface Problem
     options: {
         id: number;
         title: string;
-    }
+    }[]
     submissions: Submission[];
 }
 
@@ -41,6 +41,7 @@ export class Quiz
     private problems: Problem[];
     private activeProblem: number;
     private users: User[];
+    private currentState: "LEADERBOARD" | "QUESTION" | "NOT_STARTED" | "ENDED";
 
     constructor(roomId: string)
     {
@@ -49,22 +50,21 @@ export class Quiz
         this.problems = [];
         this.activeProblem = 0;
         this.users = [];
+        this.currentState = "NOT_STARTED";
     }
 
     addProblem(problem: Problem)
     {
         this.problems.push(problem);
+        console.log(this.problems);
     }
 
     start()
     {
         this.hasStarted = true;
         const io = IoManager.getIo();
-        io.emit("CHANGE_PROBLEM", {
-            problem: this.problems[0]
-        });
-        this.setActiveProblem(this.problems[0])
-        this.problems[0].startTime = new Date().getTime();
+        this.setActiveProblem(this.problems[0]);
+        console.log(this.problems);
     }
 
     setActiveProblem(problem: Problem)
@@ -83,7 +83,7 @@ export class Quiz
 
     sendLeaderBoard()
     {
-        const leaderBoard = this.getLeaderBoard().splice(0, 20);
+        const leaderBoard = this.getLeaderBoard();
         IoManager.getIo().to(this.roomId).emit("LEADER_BOARD", {
             leaderBoard
         })
@@ -97,15 +97,12 @@ export class Quiz
 
         if (problem)
         {
-            problem.startTime = new Date().getTime();
-            io.emit("CHANGE_PROBLEM", {
-                problem
-            });
+            this.setActiveProblem(problem);
         }
         else
         {
             // send final results hereS
-            io.emit("QUIZ_ENDED", {
+            IoManager.getIo().emit("QUIZ_ENDED", {
                 problem
             })
         }
@@ -158,6 +155,41 @@ export class Quiz
 
     getLeaderBoard()
     {
-        return this.users.sort((a, b) => a.points < b.points ? 1 : -1);
+        return this.users.sort((a, b) => a.points < b.points ? 1 : -1).splice(0, 20);
+    }
+
+    getCurrentState()
+    {
+        if (this.currentState === "NOT_STARTED")
+        {
+            return {
+                type: "NOT_STARTED"
+            }
+        }
+
+        if (this.currentState === "ENDED")
+        {
+            return {
+                type: "ENDED",
+                leaderboard: this.getLeaderBoard()
+            }
+        }
+
+        if (this.currentState === "LEADERBOARD")
+        {
+            return {
+                type: "LEADERBOARD",
+                leaderboard: this.getLeaderBoard()
+            }
+        }
+
+        if (this.currentState === "QUESTION")
+        {
+            const problem = this.problems[this.activeProblem];
+            return {
+                type: "QUESTION",
+                problem
+            }
+        }
     }
 }
