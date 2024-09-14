@@ -68,7 +68,7 @@ export const CreateProblem = ({socket, roomId}: {socket: any; roomId: string}) =
                         answer
                     }
                 });
-            }}>Add the Question</button>
+            }}>Add the question</button>
         </div>
     )
 }
